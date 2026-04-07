@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerenciador de Matérias</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #e9ecef;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 40px 20px;
+            color: #333;
+        }
+
+        .card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            width: 100%;
+            max-width: 550px;
+            margin-bottom: 20px;
+        }
+
+        /* Card de Resumo (Dados vindos do novo endpoint) */
+        .card-summary {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+            text-align: center;
+            padding: 1.2rem;
+        }
+        .card-summary h3 { margin: 0; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px; opacity: 0.9; }
+        .card-summary .total-val { font-size: 2.8rem; font-weight: 800; margin: 5px 0; }
+
+        h2 { text-align: center; color: #2c3e50; margin-top: 0; margin-bottom: 20px; font-size: 1.3rem; }
+
+        .form-group { display: flex; flex-direction: column; gap: 12px; }
+
+        input {
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+        input:focus { border-color: #3498db; }
+
+        button {
+            padding: 10px 15px;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: 0.2s;
+        }
+        button:hover { filter: brightness(1.1); }
+
+        .btn-main { background-color: #3498db; width: 100%; font-size: 1rem; }
+        .btn-update { background-color: #28a745; }
+        .btn-delete { background-color: #dc3545; }
+
+        ul { list-style: none; padding: 0; margin: 0; }
+        li {
+            background: #f8f9fa;
+            border: 1px solid #eee;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 12px;
+        }
+
+        .subject-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .subject-name { font-weight: 700; color: #2c3e50; font-size: 1.1rem; }
+
+        .badge-group { display: flex; gap: 8px; }
+        .badge { font-size: 0.75rem; padding: 4px 10px; border-radius: 20px; font-weight: 600; }
+        .badge-questions { background: #d1ecf1; color: #0c5460; }
+        .badge-hours { background: #fff3cd; color: #856404; }
+
+        .edit-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr auto auto;
+            gap: 8px;
+            border-top: 1px solid #eee;
+            padding-top: 15px;
+        }
+        .edit-row input { padding: 8px; font-size: 0.85rem; width: 100%; box-sizing: border-box; }
+    </style>
+</head>
+<body>
+
+<div class="card card-summary">
+    <h3>Total Estudado na semana</h3>
+    <div class="total-val" id="totalHoras">0h</div>
+</div>
+
+<div class="card">
+    <h2>📚 Nova Matéria</h2>
+    <div class="form-group">
+        <input type="text" id="taskDesc" placeholder="Ex: Programação Java">
+        <div style="display: flex; gap: 10px;">
+            <input type="number" id="questions" placeholder="Questões">
+            <input type="number" id="hours" placeholder="Horas">
+        </div>
+        <button class="btn-main" onclick="enviarTarefa()">Adicionar Matéria</button>
+    </div>
+</div>
+
+<div class="card">
+    <h2>📋 Minhas Matérias</h2>
+    <ul id="lista"></ul>
+</div>
+
+<script>
+    const API_URL = '/subject';
+
+    // Função centralizada para atualizar a tela
+    async function carregar() {
+        await carregarLista();
+        await carregarTotalHoras();
+    }
+
+    // 1. Carrega as matérias (Endpoint: /subject)
+    async function carregarLista() {
+        try {
+            const res = await fetch(API_URL);
+            const dados = await res.json();
+
+            document.getElementById('lista').innerHTML = dados.map(t => `
+                <li>
+                    <div class="subject-header">
+                        <span class="subject-name">${t.name}</span>
+                        <div class="badge-group">
+                            <span class="badge badge-questions">🎯 ${t.questionsSolved || 0} qst</span>
+                            <span class="badge badge-hours">⏱️ ${t.hoursStudied || 0}h</span>
+                        </div>
+                    </div>
+                    <div class="edit-row">
+                        <input type="number" id="q-${t.id}" value="${t.questionsSolved || 0}">
+                        <input type="number" id="h-${t.id}" value="${t.hoursStudied || 0}">
+                        <button class="btn-update" onclick="atualizarMateria(${t.id}, '${t.name}')">Salvar</button>
+                        <button class="btn-delete" onclick="deletarMateria(${t.id})">Remover</button>
+                    </div>
+                </li>
+            `).join('');
+        } catch (error) {
+            console.error("Erro ao carregar lista:", error);
+        }
+    }
+
+    // 2. Carrega o total (Novo Endpoint: /subject/hours)
+    async function carregarTotalHoras() {
+        try {
+            const res = await fetch(`${API_URL}/hours`);
+            const total = await res.text(); // Como o retorno é um int simples, usamos text()
+            document.getElementById('totalHoras').innerText = `${total}h`;
+        } catch (error) {
+            console.error("Erro ao buscar total de horas:", error);
+        }
+    }
+
+    async function atualizarMateria(id, nome) {
+        const qVal = parseInt(document.getElementById(`q-${id}`).value) || 0;
+        const hVal = parseInt(document.getElementById(`h-${id}`).value) || 0;
+
+        const payload = { name: nome, questionsSolved: qVal, hoursStudied: hVal };
+
+        try {
+            const res = await fetch(`${API_URL}/${id}`, {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload)
+            });
+            if(res.ok) carregar();
+        } catch (e) { console.error(e); }
+    }
+
+    async function enviarTarefa() {
+        const nInp = document.getElementById('taskDesc');
+        const qInp = document.getElementById('questions');
+        const hInp = document.getElementById('hours');
+
+        if (!nInp.value) return alert("Nome da matéria é obrigatório!");
+
+        const payload = {
+            name: nInp.value,
+            questionsSolved: parseInt(qInp.value) || 0,
+            hoursStudied: parseInt(hInp.value) || 0
+        };
+
+        try {
+            const res = await fetch(API_URL, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload)
+            });
+            if(res.ok) {
+                nInp.value = ''; qInp.value = ''; hInp.value = '';
+                carregar();
+            }
+        } catch (e) { alert("Erro ao salvar!"); }
+    }
+
+    async function deletarMateria(id) {
+        if (!confirm("Tem certeza que deseja excluir?")) return;
+        try {
+            const res = await fetch(`${API_URL}/${id}`, { method: 'DELETE' });
+            if (res.ok) carregar();
+        } catch (e) { console.error(e); }
+    }
+
+    // Inicialização
+    carregar();
+</script>
+</body>
+</html>
