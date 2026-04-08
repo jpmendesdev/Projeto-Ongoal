@@ -12,7 +12,7 @@ public class SubjectDTO {
     private Long id;
     private String name;
     private int questionsSolved;
-    private int hoursStudied;
+    private double hoursStudied;
 
     public static SubjectDTO convert(Subject subject){
         SubjectDTO subjectDTO = new SubjectDTO();

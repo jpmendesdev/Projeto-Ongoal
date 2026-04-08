@@ -19,7 +19,7 @@ public class Subject {
     private Long id;
     private String name;
     private int questionsSolved;
-    private int hoursStudied;
+    private double hoursStudied;
 
     public static Subject convert(SubjectDTO subjectDTO){
         Subject subject = new Subject();

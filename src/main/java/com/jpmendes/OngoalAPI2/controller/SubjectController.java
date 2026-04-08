@@ -39,7 +39,7 @@ public class SubjectController {
     }
 
     @GetMapping("/subject/hours")
-    public int totalHours(){
+    public double[] totalHours(){
         return subjectService.getAllHours();
     }
 }

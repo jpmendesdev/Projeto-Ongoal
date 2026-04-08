@@ -5,8 +5,6 @@ import com.jpmendes.OngoalAPI2.model.Subject;
 import com.jpmendes.OngoalAPI2.repository.SubjectRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-
-import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -44,12 +42,18 @@ public class SubjectService {
         }
     }
 
-    public int getAllHours(){
+    public double[] getAllHours(){
         List<Subject> subjects = subjectRepository.findAll();
-        int hours = 0;
+        double[] tempo = new double[2];
+        double totalTime = 0;
         for(Subject s : subjects){
-            hours+=s.getHoursStudied();
+            totalTime+=s.getHoursStudied();
         }
-        return hours;
+        int hours = (int) totalTime;
+        double minutes = totalTime % hours;
+        double totalMinutes = minutes * 60;
+        tempo[0] = hours;
+        tempo[1] = totalMinutes;
+        return tempo;
     }
 }

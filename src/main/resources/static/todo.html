@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OnGoal - ToDo List</title>
+    <style>
+        /* Estilos Visuais */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #f4f7f6;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .todo-container {
+            background: white;
+            width: 100%;
+            max-width: 450px;
+            padding: 2.5rem;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+        }
+
+        h1 {
+            color: #2d3436;
+            margin-bottom: 1.5rem;
+            text-align: center;
+            font-weight: 600;
+        }
+
+        /* Input de nova tarefa */
+        .input-group {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 2rem;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            padding: 14px;
+            border: 2px solid #edf2f7;
+            border-radius: 8px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        input[type="text"]:focus {
+            border-color: #4a90e2;
+        }
+
+        button#add-btn {
+            background-color: #4a90e2;
+            color: white;
+            border: none;
+            padding: 0 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+
+        button#add-btn:hover {
+            background-color: #357abd;
+        }
+
+        /* Listagem */
+        ul {
+            list-style: none;
+        }
+
+        li {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 0;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        li:last-child {
+            border-bottom: none;
+        }
+
+        .task-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 1rem;
+            color: #4a5568;
+            cursor: pointer;
+        }
+
+        /* Estilo para concluído */
+        .completed span {
+            text-decoration: line-through;
+            color: #a0aec0;
+        }
+
+        input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+            accent-color: #4a90e2;
+        }
+    </style>
+</head>
+<body>
+
+<div class="todo-container">
+    <h1>OnGoal Tasks</h1>
+
+    <div class="input-group">
+        <input type="text" id="taskInput" placeholder="O que vamos conquistar hoje?">
+        <button id="add-btn">Salvar</button>
+    </div>
+
+    <ul id="todoList">
+    </ul>
+</div>
+
+<script>
+    const API_URL = 'http://localhost:8080/tarefas';
+    const taskInput = document.getElementById('taskInput');
+    const addBtn = document.getElementById('add-btn');
+    const todoList = document.getElementById('todoList');
+
+    // 1. CARREGAR TAREFAS (GET)
+    async function fetchTasks() {
+        try {
+            const response = await fetch(API_URL);
+            if (!response.ok) throw new Error("Erro ao acessar API");
+            const tasks = await response.json();
+            renderTasks(tasks);
+        } catch (error) {
+            console.error("Falha na conexão:", error);
+            todoList.innerHTML = `<p style="color: #e53e3e; text-align: center; font-size: 0.9rem;">Servidor offline.</p>`;
+        }
+    }
+
+    // 2. RENDERIZAR NA TELA (Usando 'title' e 'status')
+    function renderTasks(tasks) {
+        todoList.innerHTML = '';
+        tasks.forEach(task => {
+            const isDone = task.status === 'concluido';
+            const li = document.createElement('li');
+
+            li.innerHTML = `
+                <div class="task-info ${isDone ? 'completed' : ''}">
+                    <input type="checkbox" ${isDone ? 'checked' : ''}
+                           onchange="toggleTask(${task.id}, '${task.title}', '${task.status}')">
+                    <span>${task.title}</span>
+                </div>
+            `;
+            todoList.appendChild(li);
+        });
+    }
+
+    // 3. ADICIONAR TAREFA (POST)
+    addBtn.addEventListener('click', async () => {
+        const title = taskInput.value.trim();
+        if (!title) return;
+
+        const newTask = {
+            title: title,
+            status: 'pendente' // Status inicial padrão
+        };
+
+        try {
+            const response = await fetch(API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(newTask)
+            });
+
+            if (response.ok) {
+                taskInput.value = '';
+                fetchTasks();
+            }
+        } catch (error) {
+            console.error("Erro ao salvar:", error);
+        }
+    });
+
+    // 4. ALTERNAR STATUS (PUT)
+    // Lembre-se: O backend precisa aceitar PUT em /tarefas/{id}
+    async function toggleTask(id, title, currentStatus) {
+        const nextStatus = (currentStatus === 'concluido') ? 'pendente' : 'concluido';
+
+        try {
+            const response = await fetch(`${API_URL}/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    id: id,
+                    title: title,
+                    status: nextStatus
+                })
+            });
+
+            if (response.ok) {
+                fetchTasks(); // Atualiza a lista para refletir a mudança visual
+            } else {
+                alert("Erro ao atualizar: verifique se o método PUT existe no Java.");
+                fetchTasks(); // Reverte o visual se der erro
+            }
+        } catch (error) {
+            console.error("Erro na atualização:", error);
+        }
+    }
+
+    // Iniciar
+    fetchTasks();
+</script>
+
+</body>
+</html>
